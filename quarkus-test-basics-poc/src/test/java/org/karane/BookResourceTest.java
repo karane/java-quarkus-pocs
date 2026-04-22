@@ -103,4 +103,107 @@ class BookResourceTest {
             .body("error", notNullValue());
     }
 
+    @Test @Order(6)
+    void listByGenre_returnsFilteredBooks() {
+        given().contentType(ContentType.JSON)
+            .body("{\"title\":\"Dune\",\"author\":\"Herbert\",\"genre\":\"SciFi\",\"price\":14.99}")
+            .when().post("/books").then().statusCode(201);
+        given().contentType(ContentType.JSON)
+            .body("{\"title\":\"Foundation\",\"author\":\"Asimov\",\"genre\":\"SciFi\",\"price\":12.99}")
+            .when().post("/books").then().statusCode(201);
+        given().contentType(ContentType.JSON)
+            .body("{\"title\":\"Clean Code\",\"author\":\"Martin\",\"genre\":\"Programming\",\"price\":29.99}")
+            .when().post("/books").then().statusCode(201);
+
+        given()
+            .queryParam("genre", "SciFi")
+            .when().get("/books")
+            .then()
+            .statusCode(200)
+            .body("$", hasSize(2))          // "$" = root of JSON response; asserts the array has 2 elements
+            .body("genre", everyItem(equalToIgnoringCase("SciFi")));
+    }
+
+    @Test @Order(7)
+    void listByGenre_noMatch_returnsEmpty() {
+        given()
+            .queryParam("genre", "NonExistent")
+            .when().get("/books")
+            .then()
+            .statusCode(200)
+            .body("$", hasSize(0));
+    }
+
+    @Test @Order(8)
+    void updateBook_returnsUpdated() {
+        Number id = given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\":\"Old Title\",\"author\":\"Author\",\"genre\":\"Fiction\",\"price\":9.99}")
+            .when().post("/books")
+            .then().statusCode(201).extract().path("id");
+
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\":\"New Title\",\"author\":\"Author\",\"genre\":\"Fiction\",\"price\":19.99}")
+            .when().put("/books/" + id)
+            .then()
+            .statusCode(200)
+            .body("title", equalTo("New Title"))
+            .body("price", equalTo(19.99f));
+    }
+
+    @Test @Order(9)
+    void updateBook_notFound() {
+        given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\":\"X\",\"author\":\"Y\",\"genre\":\"Z\",\"price\":1.0}")
+            .when().put("/books/9999")
+            .then()
+            .statusCode(404)
+            .body("error", notNullValue());
+    }
+
+    @Test @Order(10)
+    void deleteBook_returns204() {
+        Number id = given()
+            .contentType(ContentType.JSON)
+            .body("{\"title\":\"ToDelete\",\"author\":\"Author\",\"genre\":\"Fiction\",\"price\":5.0}")
+            .when().post("/books")
+            .then().statusCode(201).extract().path("id");
+
+        given()
+            .when().delete("/books/" + id)
+            .then()
+            .statusCode(204);
+
+        given()
+            .when().get("/books/" + id)
+            .then()
+            .statusCode(404);
+    }
+
+    @Test @Order(11)
+    void deleteBook_notFound() {
+        given()
+            .when().delete("/books/9999")
+            .then()
+            .statusCode(404)
+            .body("error", notNullValue());
+    }
+
+    @Test @Order(12)
+    void createMultiple_listReturnsAll() {
+        given().contentType(ContentType.JSON)
+            .body("{\"title\":\"Book A\",\"author\":\"A\",\"genre\":\"Fiction\",\"price\":10.0}")
+            .when().post("/books").then().statusCode(201);
+        given().contentType(ContentType.JSON)
+            .body("{\"title\":\"Book B\",\"author\":\"B\",\"genre\":\"Fiction\",\"price\":11.0}")
+            .when().post("/books").then().statusCode(201);
+
+        given()
+            .when().get("/books")
+            .then()
+            .statusCode(200)
+            .body("$", hasSize(2));
+    }
 }
